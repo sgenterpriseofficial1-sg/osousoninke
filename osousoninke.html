@@ -1,0 +1,395 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>O SOU SONINKE</title>
+  <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="O SOU SONINKE - Fashion, clothing and African style.">
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background: #fff;
+    }
+
+    /* MAIN WEBSITE */
+
+    #website {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #fff;
+      transition: height .25s ease;
+    }
+
+    body.has-ad #website {
+      height: calc(100% - 75px);
+    }
+
+    /* ADVERTISEMENT AREA */
+
+    #ad {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 75px;
+      background: #fff;
+      align-items: center;
+      justify-content: center;
+      padding: 5px 12px;
+      z-index: 9999;
+      box-shadow: 0 -3px 15px rgba(0,0,0,.12);
+    }
+
+    #ad.show {
+      display: flex;
+    }
+
+    #adLink {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      height: 100%;
+      text-decoration: none;
+    }
+
+    #adImage {
+      max-width: 100%;
+      max-height: 65px;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      display: block;
+      border-radius: 5px;
+    }
+
+    /* LOADING */
+
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: white;
+      z-index: 10000;
+      transition: opacity .3s;
+    }
+
+    #loading.hide {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loader-content {
+      text-align: center;
+      color: #222;
+    }
+
+    .loader-content h2 {
+      font-size: 22px;
+      letter-spacing: 2px;
+    }
+
+    .spinner {
+      width: 30px;
+      height: 30px;
+      border: 3px solid #eee;
+      border-top-color: #d4a017;
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      margin: 15px auto;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- WEBSITE LOADING -->
+  <div id="loading">
+    <div class="loader-content">
+      <h2>O SOU SONINKE</h2>
+      <div class="spinner"></div>
+      <p>Loading website...</p>
+    </div>
+  </div>
+
+  <!-- MAIN LOVABLE WEBSITE -->
+  <iframe
+    id="website"
+    src="https://osousoninke.lovable.app/"
+    title="O SOU SONINKE Website"
+    allow="payment; clipboard-write"
+    loading="eager">
+  </iframe>
+
+  <!-- ADVERTISEMENT BANNER -->
+  <div id="ad">
+    <a id="adLink" href="#" target="_blank" rel="noopener noreferrer">
+      <img id="adImage" src="" alt="O SOU SONINKE Advertisement">
+    </a>
+  </div>
+
+  <script>
+
+    // =================================
+    // O SOU SONINKE FIREBASE CONFIG
+    // =================================
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCWBkJk1d1B80U5U5kW2A7kVoa7GbzRWzY",
+      authDomain: "o-sou-soninke-app.firebaseapp.com",
+
+      databaseURL:
+        "https://o-sou-soninke-app-default-rtdb.europe-west1.firebasedatabase.app",
+
+      projectId: "o-sou-soninke-app",
+      storageBucket: "o-sou-soninke-app.firebasestorage.app",
+      messagingSenderId: "118607860633",
+      appId: "1:118607860633:web:8087217f8e231dc24cf908",
+      measurementId: "G-FYBNK0YJRF"
+    };
+
+
+    // =================================
+    // WEBSITE ELEMENTS
+    // =================================
+
+    const website = document.getElementById("website");
+    const loading = document.getElementById("loading");
+
+    const adContainer = document.getElementById("ad");
+    const adImage = document.getElementById("adImage");
+    const adLink = document.getElementById("adLink");
+
+    let ads = [];
+    let currentIndex = 0;
+    let failedAds = new Set();
+    let imageRequest = 0;
+
+
+    // =================================
+    // WEBSITE LOADING
+    // =================================
+
+    website.addEventListener("load", () => {
+      loading.classList.add("hide");
+
+      setTimeout(() => {
+        loading.style.display = "none";
+      }, 350);
+    });
+
+
+    // =================================
+    // FIREBASE INITIALIZATION
+    // =================================
+
+    try {
+
+      firebase.initializeApp(firebaseConfig);
+
+      const database = firebase.database();
+
+      // Advertisement database location
+      const adsRef = database.ref("ads");
+
+
+      // =================================
+      // URL VALIDATION
+      // =================================
+
+      function validUrl(value) {
+
+        try {
+
+          const url = new URL(value);
+
+          return (
+            url.protocol === "https:" ||
+            url.protocol === "http:"
+          );
+
+        } catch {
+          return false;
+        }
+      }
+
+
+      // =================================
+      // HIDE ADVERTISEMENT
+      // =================================
+
+      function hideAd() {
+
+        imageRequest++;
+
+        adContainer.classList.remove("show");
+        document.body.classList.remove("has-ad");
+
+        adImage.removeAttribute("src");
+        adLink.removeAttribute("href");
+      }
+
+
+      // =================================
+      // DISPLAY ADVERTISEMENT
+      // =================================
+
+      function showAd() {
+
+        if (!ads.length) {
+          hideAd();
+          return;
+        }
+
+        // Find next working advertisement
+        for (let i = 0; i < ads.length; i++) {
+
+          const index = (currentIndex + i) % ads.length;
+
+          if (failedAds.has(index)) continue;
+
+          const ad = ads[index];
+
+          if (
+            !ad ||
+            !validUrl(ad.image) ||
+            !validUrl(ad.url)
+          ) {
+            failedAds.add(index);
+            continue;
+          }
+
+          currentIndex = (index + 1) % ads.length;
+
+          const request = ++imageRequest;
+
+          adImage.onload = () => {
+
+            if (request !== imageRequest) return;
+
+            adContainer.classList.add("show");
+            document.body.classList.add("has-ad");
+
+          };
+
+          adImage.onerror = () => {
+
+            if (request !== imageRequest) return;
+
+            failedAds.add(index);
+            showAd();
+
+          };
+
+          adLink.href = ad.url;
+          adImage.src = ad.image;
+
+          return;
+        }
+
+        // No working images
+        hideAd();
+      }
+
+
+      // =================================
+      // REALTIME FIREBASE ADS
+      // =================================
+
+      adsRef.on("value", snapshot => {
+
+        const data = snapshot.val() || {};
+
+        // Only show enabled advertisements
+        ads = Object.values(data).filter(ad => {
+
+          return (
+            ad &&
+            ad.enabled !== false &&
+            typeof ad.image === "string" &&
+            typeof ad.url === "string" &&
+            validUrl(ad.image) &&
+            validUrl(ad.url)
+          );
+
+        });
+
+        // Reset rotation after database changes
+        currentIndex = 0;
+        failedAds.clear();
+
+        showAd();
+
+        console.log(
+          "O SOU SONINKE advertisements loaded:",
+          ads.length
+        );
+
+      }, error => {
+
+        console.error(
+          "Firebase advertisement error:",
+          error
+        );
+
+        hideAd();
+
+      });
+
+
+      // =================================
+      // AUTOMATIC AD ROTATION
+      // =================================
+
+      setInterval(() => {
+
+        if (ads.length > 1) {
+          showAd();
+        }
+
+      }, 5000);
+
+
+    } catch (error) {
+
+      console.error(
+        "Firebase initialization failed:",
+        error
+      );
+
+      hideAd();
+
+    }
+
+  </script>
+
+</body>
+</html>

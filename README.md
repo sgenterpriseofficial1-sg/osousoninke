@@ -1,2 +1,0 @@
-# osousoninke
-O SOU SONINKE 
